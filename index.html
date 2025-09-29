@@ -28,6 +28,15 @@
         .bg-brand-light-blue { background-color: #5AABDF; }
 
         .hidden { display: none; }
+        
+        /* Estilos para el Pop-up personalizado y su animación */
+        #custom-popup {
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        }
+        #custom-popup.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
     </style>
     <!-- El Snippet de Genesys Cloud se cargará dinámicamente con Javascript -->
 </head>
@@ -242,6 +251,20 @@
             </div>
         </div>
     </footer>
+    
+    <!-- Custom Genesys Proactive Chat Pop-up -->
+    <div id="custom-popup" class="fixed bottom-5 right-5 w-80 bg-white rounded-lg shadow-2xl p-4 z-[9998] transition-all duration-500 transform translate-y-10 opacity-0 cursor-pointer">
+        <button id="popup-close" class="absolute top-1 right-2 text-gray-500 hover:text-gray-800 text-2xl font-bold z-10">&times;</button>
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <div class="w-10 h-10 bg-brand-blue rounded-full flex items-center justify-center text-white font-bold text-lg">W</div>
+            </div>
+            <div class="ml-3">
+                <p class="font-bold text-brand-dark-blue">Waspert Asistente</p>
+                <p id="popup-message" class="text-sm text-gray-700 mt-1"></p>
+            </div>
+        </div>
+    </div>
 
     <script>
         const mainContainer = document.getElementById('main-container');
@@ -253,11 +276,38 @@
         const navToggle = document.getElementById('nav-toggle');
         const ctaButton = document.getElementById('cta-button');
         
+        const customPopup = document.getElementById('custom-popup');
+        const popupMessage = document.getElementById('popup-message');
+        const popupClose = document.getElementById('popup-close');
+        
         let genesysLoadedFor = null; // Rastrea qué snippet está cargado: null, 'personal', o 'empresa'
 
+        // --- Event Listeners para el Pop-up ---
+        customPopup.addEventListener('click', () => {
+            openChatFromPopup();
+        });
+
+        popupClose.addEventListener('click', (e) => {
+            e.stopPropagation(); // Evita que el click se propague al div padre y abra el chat
+            customPopup.classList.remove('active');
+        });
+
+        function openChatFromPopup() {
+            if (window.Genesys) {
+                Genesys('command', 'Messenger.show');
+                Genesys('command', 'Messenger.open');
+            }
+            customPopup.classList.remove('active');
+        }
+
+        // --- Lógica de Carga de Genesys ---
         function loadGenesys(type) {
             if (genesysLoadedFor === type) {
-                return; // Snippet correcto ya está cargado
+                // Si el snippet correcto ya está cargado, solo asegura que el messenger esté oculto
+                 if (window.Genesys) {
+                    Genesys('command', 'Messenger.hide');
+                }
+                return;
             }
 
             // Limpia la instancia anterior de Genesys si existe
@@ -297,7 +347,7 @@
                 ys = document.createElement('script'); ys.async = 1; ys.src = n; ys.charset = 'utf-8'; document.head.appendChild(ys);
             })(window, 'Genesys', 'https://apps.mypurecloud.com/genesys-bootstrap/genesys.min.js', config);
             
-            // Oculta el messenger en cuanto esté listo
+            // Oculta el messenger en cuanto esté listo para evitar cualquier "flash"
             Genesys('subscribe', 'Messenger.ready', function(){
                 Genesys('command', 'Messenger.hide');
             });
@@ -305,6 +355,7 @@
             genesysLoadedFor = type;
         }
 
+        // --- Lógica de Navegación y Vistas ---
         function hideAllViews() {
             const views = mainContainer.children;
             for (let view of views) {
@@ -314,6 +365,7 @@
 
         function showView(view) {
             hideAllViews();
+            customPopup.classList.remove('active'); // Oculta el pop-up si se cambia de vista
             navToggle.classList.remove('hidden');
 
             if (view === 'personal') {
@@ -348,30 +400,18 @@
             }
         }
         
+        // --- Lógica para Disparar el Pop-up Proactivo ---
         function triggerPersonalChat() {
-            // Espera un poco para que el usuario se reoriente antes de lanzar el pop-up
             setTimeout(() => {
-                if (window.Genesys) {
-                    Genesys('command', 'Messenger.show');
-                    Genesys('command', 'Messenger.open', {
-                        message: '¡Hola! 👋 Veo que estás explorando a fondo. ¿Te quedó alguna duda? Pregúntale a Waspy, nuestro asistente virtual.'
-                    });
-                } else {
-                    console.log('Genesys object not found. Chat could not be triggered.');
-                }
+                popupMessage.textContent = '¡Hola! 👋 Veo que estás explorando a fondo. ¿Te quedó alguna duda? Pregúntale a Waspy, nuestro asistente virtual.';
+                customPopup.classList.add('active');
             }, 1000); // 1 segundo de retraso
         }
 
         function triggerEmpresaChat() {
             setTimeout(() => {
-                if (window.Genesys) {
-                    Genesys('command', 'Messenger.show');
-                    Genesys('command', 'Messenger.open', {
-                        message: 'Saludos. Si desea agendar una consulta con un especialista para resolver cualquier duda, nuestro asistente Waspy puede ayudarle.'
-                    });
-                } else {
-                    console.log('Genesys object not found. Chat could not be triggered.');
-                }
+                popupMessage.textContent = 'Saludos. Si desea agendar una consulta con un especialista para resolver cualquier duda, nuestro asistente Waspy puede ayudarle.';
+                customPopup.classList.add('active');
             }, 1000); // 1 segundo de retraso
         }
 
@@ -380,6 +420,7 @@
             viewSelector.classList.remove('hidden');
             navToggle.classList.add('hidden');
             ctaButton.textContent = 'Cotiza ahora';
+            customPopup.classList.remove('active');
             // Opcional: Destruir Genesys al volver al selector para una experiencia más limpia
             if (window.Genesys) {
                 Genesys('command', 'Messenger.destroy');
