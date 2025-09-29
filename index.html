@@ -29,13 +29,16 @@
 
         .hidden { display: none; }
         
-        /* Estilos para el Pop-up personalizado y su animación */
+        /* Estilos para el Pop-up Modal y su animación */
         #custom-popup {
-            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
         }
         #custom-popup.active {
             opacity: 1;
-            transform: translateY(0);
+            transform: -translate-x-1/2 -translate-y-1/2 scale(1);
+        }
+        #popup-overlay.active {
+            opacity: 1;
         }
     </style>
     <!-- El Snippet de Genesys Cloud se cargará dinámicamente con Javascript -->
@@ -252,19 +255,28 @@
         </div>
     </footer>
     
-    <!-- Custom Genesys Proactive Chat Pop-up -->
-    <div id="custom-popup" class="fixed bottom-5 right-5 w-80 bg-white rounded-lg shadow-2xl p-4 z-[9998] transition-all duration-500 transform translate-y-10 opacity-0 cursor-pointer">
-        <button id="popup-close" class="absolute top-1 right-2 text-gray-500 hover:text-gray-800 text-2xl font-bold z-10">&times;</button>
-        <div class="flex items-start">
+    <!-- Modal Overlay -->
+    <div id="popup-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-[9997] hidden transition-opacity duration-300 opacity-0"></div>
+
+    <!-- Custom Genesys Proactive Chat Modal -->
+    <div id="custom-popup" class="fixed top-1/2 left-1/2 w-full max-w-md bg-white rounded-lg shadow-2xl p-6 z-[9998] transition-all duration-300 transform -translate-x-1/2 -translate-y-1/2 scale-95 opacity-0">
+        <button id="popup-close" class="absolute top-3 right-3 text-gray-400 hover:text-gray-800 text-3xl font-light z-10">&times;</button>
+        <div class="flex items-center mb-4">
             <div class="flex-shrink-0">
-                <div class="w-10 h-10 bg-brand-blue rounded-full flex items-center justify-center text-white font-bold text-lg">W</div>
+                <div class="w-12 h-12 bg-brand-blue rounded-full flex items-center justify-center text-white font-bold text-xl">W</div>
             </div>
-            <div class="ml-3">
-                <p class="font-bold text-brand-dark-blue">Waspert Asistente</p>
-                <p id="popup-message" class="text-sm text-gray-700 mt-1"></p>
+            <div class="ml-4">
+                <p class="font-bold text-xl text-brand-dark-blue">Waspert Asistente</p>
             </div>
         </div>
+        <div>
+            <p id="popup-message" class="text-gray-700 mt-1 mb-6"></p>
+            <button id="popup-accept" class="w-full bg-brand-orange text-white font-semibold py-3 rounded-lg hover:bg-opacity-90 transition">
+                Hablar con Waspy
+            </button>
+        </div>
     </div>
+
 
     <script>
         const mainContainer = document.getElementById('main-container');
@@ -279,38 +291,45 @@
         const customPopup = document.getElementById('custom-popup');
         const popupMessage = document.getElementById('popup-message');
         const popupClose = document.getElementById('popup-close');
+        const popupOverlay = document.getElementById('popup-overlay');
+        const popupAccept = document.getElementById('popup-accept');
         
         let genesysLoadedFor = null; // Rastrea qué snippet está cargado: null, 'personal', o 'empresa'
 
-        // --- Event Listeners para el Pop-up ---
-        customPopup.addEventListener('click', () => {
+        // --- Event Listeners para el Pop-up/Modal ---
+        popupAccept.addEventListener('click', () => {
             openChatFromPopup();
         });
 
-        popupClose.addEventListener('click', (e) => {
-            e.stopPropagation(); // Evita que el click se propague al div padre y abra el chat
+        function closePopup() {
             customPopup.classList.remove('active');
-        });
+            popupOverlay.classList.remove('active');
+            // Damos tiempo a la animación para que termine antes de ocultarlo completamente
+            setTimeout(() => {
+                 popupOverlay.classList.add('hidden');
+            }, 300);
+        }
+
+        popupClose.addEventListener('click', closePopup);
+        popupOverlay.addEventListener('click', closePopup);
 
         function openChatFromPopup() {
             if (window.Genesys) {
                 Genesys('command', 'Messenger.show');
                 Genesys('command', 'Messenger.open');
             }
-            customPopup.classList.remove('active');
+            closePopup(); // Oculta nuestro modal personalizado
         }
 
         // --- Lógica de Carga de Genesys ---
         function loadGenesys(type) {
             if (genesysLoadedFor === type) {
-                // Si el snippet correcto ya está cargado, solo asegura que el messenger esté oculto
-                 if (window.Genesys) {
+                if (window.Genesys) {
                     Genesys('command', 'Messenger.hide');
                 }
                 return;
             }
 
-            // Limpia la instancia anterior de Genesys si existe
             if (window.Genesys) {
                 Genesys('command', 'Messenger.destroy');
             }
@@ -333,10 +352,9 @@
                     deploymentId: '81c8813e-53b8-41bf-a321-88e3de890d51' 
                 };
             } else {
-                return; // No hacer nada si el tipo no es válido
+                return;
             }
 
-            // Carga el nuevo snippet de Genesys
             (function (g, e, n, es, ys) {
                 g['_genesysJs'] = e;
                 g[e] = g[e] || function () {
@@ -347,7 +365,6 @@
                 ys = document.createElement('script'); ys.async = 1; ys.src = n; ys.charset = 'utf-8'; document.head.appendChild(ys);
             })(window, 'Genesys', 'https://apps.mypurecloud.com/genesys-bootstrap/genesys.min.js', config);
             
-            // Oculta el messenger en cuanto esté listo para evitar cualquier "flash"
             Genesys('subscribe', 'Messenger.ready', function(){
                 Genesys('command', 'Messenger.hide');
             });
@@ -365,7 +382,7 @@
 
         function showView(view) {
             hideAllViews();
-            customPopup.classList.remove('active'); // Oculta el pop-up si se cambia de vista
+            closePopup();
             navToggle.classList.remove('hidden');
 
             if (view === 'personal') {
@@ -404,15 +421,23 @@
         function triggerPersonalChat() {
             setTimeout(() => {
                 popupMessage.textContent = '¡Hola! 👋 Veo que estás explorando a fondo. ¿Te quedó alguna duda? Pregúntale a Waspy, nuestro asistente virtual.';
-                customPopup.classList.add('active');
-            }, 1000); // 1 segundo de retraso
+                popupOverlay.classList.remove('hidden');
+                requestAnimationFrame(() => {
+                    customPopup.classList.add('active');
+                    popupOverlay.classList.add('active');
+                });
+            }, 1000);
         }
 
         function triggerEmpresaChat() {
             setTimeout(() => {
                 popupMessage.textContent = 'Saludos. Si desea agendar una consulta con un especialista para resolver cualquier duda, nuestro asistente Waspy puede ayudarle.';
-                customPopup.classList.add('active');
-            }, 1000); // 1 segundo de retraso
+                 popupOverlay.classList.remove('hidden');
+                 requestAnimationFrame(() => {
+                    customPopup.classList.add('active');
+                    popupOverlay.classList.add('active');
+                });
+            }, 1000);
         }
 
         function showSelector() {
@@ -420,8 +445,7 @@
             viewSelector.classList.remove('hidden');
             navToggle.classList.add('hidden');
             ctaButton.textContent = 'Cotiza ahora';
-            customPopup.classList.remove('active');
-            // Opcional: Destruir Genesys al volver al selector para una experiencia más limpia
+            closePopup();
             if (window.Genesys) {
                 Genesys('command', 'Messenger.destroy');
                 const oldScript = document.querySelector('script[src*="genesys-bootstrap"]');
