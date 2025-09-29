@@ -29,6 +29,11 @@
 
         .hidden { display: none; }
         
+        /* Performance hint for the sticky header to prevent scroll lag */
+        header {
+            will-change: transform;
+        }
+        
         /* Estilos para el Pop-up Modal y su animación */
         #custom-popup {
             transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
@@ -401,10 +406,12 @@
         }
 
         function showSubView(view) {
-             hideAllViews();
+             // Hide the current main view and show the corresponding sub-view
              if (view === 'personal') {
+                viewPersonal.classList.add('hidden');
                 viewPersonalInfo.classList.remove('hidden');
              } else if (view === 'empresa') {
+                viewEmpresa.classList.add('hidden');
                 viewEmpresaInfo.classList.remove('hidden');
              }
         }
