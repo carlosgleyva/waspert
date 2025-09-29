@@ -374,10 +374,11 @@
 
         // --- Lógica de Navegación y Vistas ---
         function hideAllViews() {
-            const views = mainContainer.children;
-            for (let view of views) {
-                view.classList.add('hidden');
-            }
+            viewSelector.classList.add('hidden');
+            viewPersonal.classList.add('hidden');
+            viewEmpresa.classList.add('hidden');
+            viewPersonalInfo.classList.add('hidden');
+            viewEmpresaInfo.classList.add('hidden');
         }
 
         function showView(view) {
